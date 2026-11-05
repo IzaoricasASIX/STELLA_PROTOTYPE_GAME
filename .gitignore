@@ -1,0 +1,12 @@
+# GameMaker
+*.resource_cache
+/Backup/
+/__MACOSX/
+.DS_Store
+Thumbs.db
+*.yyz
+/.vscode/
+/.idea/
+# build output
+/output/
+/*.zip

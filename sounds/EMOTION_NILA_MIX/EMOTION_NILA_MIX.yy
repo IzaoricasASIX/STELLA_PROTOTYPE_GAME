@@ -1,0 +1,26 @@
+{
+  "$GMSound":"v2",
+  "%Name":"EMOTION_NILA_MIX",
+  "audioGroupId":{
+    "name":"audiogroup_default",
+    "path":"audiogroups/audiogroup_default",
+  },
+  "bitDepth":1,
+  "channelFormat":0,
+  "compression":0,
+  "compressionQuality":4,
+  "conversionMode":0,
+  "duration":430.94318,
+  "exportDir":"",
+  "name":"EMOTION_NILA_MIX",
+  "parent":{
+    "name":"MUSIC",
+    "path":"folders/MUSIC.yy",
+  },
+  "preload":false,
+  "resourceType":"GMSound",
+  "resourceVersion":"2.0",
+  "sampleRate":44100,
+  "soundFile":"EMOTION_NILA_MIX.ogg",
+  "volume":1.0,
+}

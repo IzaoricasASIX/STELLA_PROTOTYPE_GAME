@@ -1,0 +1,26 @@
+{
+  "$GMSound":"v2",
+  "%Name":"FOREST",
+  "audioGroupId":{
+    "name":"audiogroup_default",
+    "path":"audiogroups/audiogroup_default",
+  },
+  "bitDepth":1,
+  "channelFormat":0,
+  "compression":0,
+  "compressionQuality":4,
+  "conversionMode":0,
+  "duration":295.51874,
+  "exportDir":"",
+  "name":"FOREST",
+  "parent":{
+    "name":"MUSIC",
+    "path":"folders/MUSIC.yy",
+  },
+  "preload":false,
+  "resourceType":"GMSound",
+  "resourceVersion":"2.0",
+  "sampleRate":44100,
+  "soundFile":"FOREST.ogg",
+  "volume":1.0,
+}
