@@ -14,6 +14,12 @@ if (global.cam_shake > 0) global.cam_shake = max(0, global.cam_shake - 0.45);
 
 if (keyboard_check_pressed(vk_f3)) global.debug_draw = !global.debug_draw;
 
+// M = mute / unmute ALL audio (master volume 0 or 1)
+if (keyboard_check_pressed(ord("M"))) {
+    global.muted = !global.muted;
+    audio_master_gain(global.muted ? 0 : 1);
+}
+
 // --- room transition state machine ---
 if (global.fade_state == 1) {
     global.fade_alpha = min(1, global.fade_alpha + fade_speed);

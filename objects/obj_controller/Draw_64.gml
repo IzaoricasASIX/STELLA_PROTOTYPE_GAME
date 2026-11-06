@@ -19,13 +19,13 @@ for (i = 0; i < maxh; i++) {
 }
 draw_set_color(c_white);
 
-draw_text(16, 60, (p.object_index == obj_nila) ? "NILA" : "STELLA");
+draw_text(16, 60, ((p.object_index == obj_nila) ? "NILA" : "STELLA") + (global.muted ? "   (MUTED)" : ""));
 if (p.object_index == obj_stella && p.is_gelatin) {
     draw_text(16, 76, "GELATIN");
 }
 
 draw_set_alpha(0.7);
-draw_text(16, display_get_gui_height() - 28, "Z jump  X dash/atk  Shift run  R retry  Tab switch  F3 debug");
+draw_text(16, display_get_gui_height() - 28, "Z jump  X dash/atk  Shift run  R retry  Tab switch  M mute  F3 debug");
 draw_set_alpha(1);
 }
 

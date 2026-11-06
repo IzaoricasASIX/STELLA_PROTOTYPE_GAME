@@ -19,4 +19,6 @@ if (!variable_global_exists("debug_draw"))    global.debug_draw = false;  // F3 
 if (!variable_global_exists("character_override")) global.character_override = "";   // "" = rooms decide; otherwise the character chosen with Tab
 if (!variable_global_exists("score_at_room_start")) global.score_at_room_start = global.score;
 
+if (!variable_global_exists("muted")) global.muted = false;   // M toggles
+
 fade_speed = 0.08;   // how fast the screen fades (per frame). 0.05 = slower

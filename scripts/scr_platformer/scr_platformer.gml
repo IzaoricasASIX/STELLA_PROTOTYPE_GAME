@@ -60,9 +60,9 @@ function player_check_arrival() {
     if (global.arrive_door == "") return;
 
     var _door = noone;
-    with (obj_door) {
-        if (door_id == global.arrive_door) _door = id;   // `id` = this door instance
-    }
+    with (obj_door)  { if (door_id == global.arrive_door) _door = id; }   // `id` = this instance
+    with (obj_warp)  { if (door_id == global.arrive_door) _door = id; }
+    with (obj_spawn) { if (door_id == global.arrive_door) _door = id; }
     if (_door == noone) return;
 
     // Line up the centre of our box with the door, and our feet with its floor.
@@ -118,13 +118,20 @@ function player_init_common() {
     // --- movement tuning shared by every character (override in a Create event) ---
     step_max = 6;               // tallest little ledge we walk up automatically (px)
     snap_max = 4;               // how far we stick to the ground going downhill (px)
-    air_accel = 0.12;           // air steering strength, times speed
+    air_accel = 0.16;           // air steering strength, times speed
     air_turn_accel = 0.06;      // steering when pushing AGAINST your motion (weak = committed jumps)
     air_drag = 0.10;            // how fast we slow down in the air when not pushing
     gelatin_grav = 0.65;        // gravity multiplier while gelatin
-    grav_rise = 0.36;           // gravity while going UP
-    grav_fall = 0.9;            // gravity while going DOWN
-    max_fall = 11;
+    grav_rise = 0.40;           // gravity while going UP
+    grav_fall = 1.0;            // gravity while going DOWN
+    fall_soft_speed = 12;       // above this fall speed we STILL accelerate, but more slowly...
+    fall_slow_factor = 0.35;    // ...gravity is multiplied by this (no hard speed cap!)
+    fast_fall_mult = 1.5;       // holding Down while falling multiplies gravity by this
+    fall_impact = 0;            // how fast we were falling when we last hit the floor
+    turn_boost = 2.0;           // reversing direction on the ground accelerates this much harder
+    wall_mem_timer = 0;         // 'wall coyote time': we remember the wall for a few frames
+    wall_mem_dir = 0;
+    wall_coyote_max = 6;
     jump_cut_speed = 3.2;       // let go of jump while rising: upward speed is capped to this
     jump_cut_ok = true;         // can letting go of jump shorten this rise?
     last_wall_dir = 0;          // side of the last wall we jumped off (0 = none)
@@ -161,12 +168,15 @@ function player_init_common() {
     }
 }
 
+// One-way blocks (obj_oneway). The arrow on the sprite points RIGHT at rotation 0,
+// UP at 90, LEFT at 180, DOWN at 270. You may only move IN the direction of the arrow.
+// (_dx, _dy) is the direction we are trying to move in.
 function oneway_can_pass(_inst, _dx, _dy) {
-    var a = ((_inst.image_angle mod 360) + 360) mod 360;
-    if (a == 0 && _dx < 0) return true;
-    if (a == 180 && _dx > 0) return true;
-    if (a == 90 && _dy < 0) return true;
-    if (a == 270 && _dy > 0) return true;
+    var a = ((round(_inst.image_angle / 90) * 90) mod 360 + 360) mod 360;
+    if (a == 0   && _dx > 0) return true;    // arrow points right
+    if (a == 90  && _dy < 0) return true;    // arrow points up   (up is negative y)
+    if (a == 180 && _dx < 0) return true;    // arrow points left
+    if (a == 270 && _dy > 0) return true;    // arrow points down
     return false;
 }
 
@@ -203,13 +213,25 @@ function player_blocked(_nx, _ny, _dx, _dy) {
 
 // If something (a spawn, a switch, a moving thing) left us INSIDE a solid, pop out
 // to the nearest free spot. A safety net so you can never be permanently stuck.
+function player_solid_at(_nx, _ny) {
+    var oldx = x;
+    var oldy = y;
+    x = _nx;
+    y = _ny;
+    var b = place_meeting(x, y, obj_ground) || place_meeting(x, y, obj_slope)
+         || (!is_gelatin && place_meeting(x, y, obj_slime_block));
+    x = oldx;
+    y = oldy;
+    return b;
+}
+
 function player_unstick() {
-    if (!player_blocked(x, y, 0, 0)) return;
+    if (!player_solid_at(x, y)) return;
     var dx = [0, 1, -1, 0];
     var dy = [-1, 0, 0, 1];
     for (var r = 1; r <= 8; r++) {
         for (var i = 0; i < 4; i++) {
-            if (!player_blocked(x + dx[i] * r, y + dy[i] * r, 0, 0)) {
+            if (!player_solid_at(x + dx[i] * r, y + dy[i] * r)) {
                 x += dx[i] * r;
                 y += dy[i] * r;
                 return;
@@ -305,7 +327,7 @@ function player_move_and_collide() {
                 }
             }
             if (!slid) {
-                if (sy > 0) landed = true;
+                if (sy > 0) { landed = true; fall_impact = vsp; }
                 if (sy < 0) hit_ceil = true;
                 vsp = 0;
                 vsp_rem = 0;
@@ -353,14 +375,20 @@ function player_apply_gravity(_input) {
     var g = is_gelatin ? gelatin_grav : 1;
 
     // JUMP CUT: letting go of jump while rising caps the upward speed.
-    // (The old version did vsp *= 0.6 every frame. A number multiplied by 0.6 gets tiny
-    //  but never reaches 0, so the game kept "cutting" and you hovered. A cap fixes it.)
+    // (A cap, not "vsp *= 0.6": a number multiplied by 0.6 never reaches 0 => hovering.)
     if (vsp < 0 && !_input.jump_h && jump_cut_ok) {
         vsp = max(vsp, -jump_cut_speed);
     }
 
-    vsp += (vsp < 0 ? grav_rise : grav_fall) * g;
-    vsp = min(vsp, max_fall);
+    if (vsp < 0) {
+        vsp += grav_rise * g;
+    } else {
+        var gf = grav_fall * g;
+        if (_input.down) gf *= fast_fall_mult;               // hold Down: fall harder
+        if (vsp > fall_soft_speed) gf *= fall_slow_factor;   // still accelerating, just gently
+        vsp += gf;
+    }
+    // No min(vsp, max) here on purpose: fall speed is uncapped.
 }
 
 // The "ran up a slope into a wall" boost. Returns true while it is pushing us up.
@@ -435,13 +463,14 @@ function player_set_gelatin(_on) {
     }
 }
 
-function player_hurt(_dmg) {
+function player_hurt(_dmg, _from_x = undefined) {
     if (inv_timer > 0) return;
 
     hp -= _dmg;
     inv_timer = 55;
     is_dashing = false;
-    hsp = -facing * 3.2;
+    if (_from_x == undefined) hsp = -facing * 3.2;                  // no source: fly backwards
+    else hsp = ((x >= _from_x) ? 1 : -1) * 3.2;                     // fly AWAY from the source
     vsp = -4.2;
     squash_x = 0.75;
     squash_y = 1.2;
@@ -475,10 +504,12 @@ function player_update_ground(_input) {
 
     if (grounded_now) {
         if (!on_ground) {
-            squash_x = 1.18;
-            squash_y = 0.72;
-            fx_dust(x, bbox_bottom, 8);
-            global.cam_shake = max(global.cam_shake, min(3, abs(vsp) * 0.15));
+            // the harder we fell, the bigger the squash, dust and camera shake
+            var imp = clamp((fall_impact - 9) / 16, 0, 1);
+            squash_x = 1.18 + 0.30 * imp;
+            squash_y = 0.72 - 0.25 * imp;
+            fx_dust(x, bbox_bottom, 8 + floor(10 * imp));
+            global.cam_shake = max(global.cam_shake, min(9, fall_impact * 0.2));
         }
         on_ground = true;
         jump_cut_ok = true;
@@ -510,8 +541,8 @@ function player_update_squash() {
         target_y = 1 - wob;
     }
 
-    squash_x = lerp(squash_x, target_x, 0.18);
-    squash_y = lerp(squash_y, target_y, 0.18);
+    squash_x = lerp(squash_x, target_x, 0.25);
+    squash_y = lerp(squash_y, target_y, 0.25);
 
     var face = facing;
     if (is_dashing) face = dash_dir;
@@ -538,28 +569,43 @@ function player_draw() {
     draw_sprite_ext(sprite_index, image_index, x, y + half_h * (1 - draw_ys), draw_xs, draw_ys, 0, c_white, image_alpha);
 }
 
+// Remember that we touched a wall. Lets you press jump a few frames AFTER leaving it
+// ("wall coyote time"), exactly like the ground coyote time.
+function player_wall_memory() {
+    if (on_wall) {
+        wall_mem_timer = wall_coyote_max;
+        wall_mem_dir = wall_dir;
+    } else if (wall_mem_timer > 0) {
+        wall_mem_timer--;
+    }
+    if (on_ground) wall_mem_timer = 0;
+}
+
 // Shared wall jump for every character.
 //   _kick_h = sideways speed away from the wall, _kick_v = upward speed (negative).
-// Rules: you can't wall jump off the SAME wall twice in a row (alternate walls, or land
-// first), and you can't steer for a few frames (wall_jump_lock) so you really leave the wall.
+// It uses jump_buffer, so pressing jump slightly BEFORE touching the wall works too.
+// Rules: not off the SAME wall twice in a row (alternate walls, or land first), and no
+// steering for a few frames (wall_jump_lock) so you really leave the wall.
 function player_try_wall_jump(_input, _kick_h, _kick_v) {
-    if (!_input.jump_p || !on_wall || on_ground) return false;
-    if (wall_dir == last_wall_dir) return false;
+    if (jump_buffer <= 0 || wall_mem_timer <= 0 || on_ground) return false;
+    var d = wall_mem_dir;
+    if (d == last_wall_dir) return false;
 
     vsp = _kick_v;
-    hsp = -wall_dir * _kick_h;
-    facing = -wall_dir;
-    last_wall_dir = wall_dir;
+    hsp = -d * _kick_h;
+    facing = -d;
+    last_wall_dir = d;
     h_lock = wall_jump_lock;
     on_wall = false;
     jump_buffer = 0;
+    wall_mem_timer = 0;
     coyote_timer = 0;
     air_dash_used = false;
     wall_climb_timer = 0;
     jump_cut_ok = true;
     squash_x = 0.82;
     squash_y = 1.18;
-    fx_dust(x - facing * 14, y, 5);
+    fx_dust(x + d * 14, y, 5);
     return true;
 }
 

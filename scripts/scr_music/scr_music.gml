@@ -1,9 +1,8 @@
 // ---------------------------------------------------------------------------
 // MUSIC MANAGER
 // Rooms say WHICH song they want with music_play(CHEER). The manager decides which
-// FILE to play: CHEER for Stella, CHEER_NILA_MIX for Nila (any sound named
-// <song>_NILA_MIX is found automatically). Same song across rooms keeps playing
-// instead of restarting.
+// FILE to play: CHEER for Stella, CHEER_NILA_MIX for Nila (see music_variant: add new
+// songs there). The same song across rooms keeps playing instead of restarting.
 // ---------------------------------------------------------------------------
 function music_init() {
     if (variable_global_exists("music_base")) return;
@@ -12,13 +11,19 @@ function music_init() {
 }
 
 // Which sound asset to actually play for the current character.
+// IMPORTANT: the sound names are written out in code on purpose. GameMaker removes assets
+// that no code mentions ("Automatically remove unused assets when compiling"), and a
+// name built from text (asset_get_index) does not count as a mention, so the Nila
+// versions were silently removed and the song never changed.
 function music_variant(_base) {
     var who = variable_global_exists("character") ? global.character : "stella";
     if (who == "nila") {
-        var v = asset_get_index(audio_get_name(_base) + "_NILA_MIX");
-        if (v != -1) return v;       // -1 means "no such asset": fall back to the normal song
+        if (_base == CHEER)   return CHEER_NILA_MIX;
+        if (_base == EMOTION) return EMOTION_NILA_MIX;
+        if (_base == FOREST)  return FOREST_NILA_MIX;
+        if (_base == SPREAD)  return SPREAD_NILA_MIX;
     }
-    return _base;
+    return _base;   // no Nila version for this song: play the normal one
 }
 
 function music_play(_base) {
