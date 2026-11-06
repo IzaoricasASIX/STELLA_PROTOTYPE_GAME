@@ -1,11 +1,11 @@
 player_init_common();
 
-walk_speed = 3.8;
-run_max = 9.2;
-run_mid = 6.8;
+walk_speed = 5.8;
+run_max = 7.2;
+run_mid = 9.8;
 
-accel_fast = 0.28;
-accel_slow = 0.11;
+accel_fast = 0.1;
+accel_slow = 0.05;
 // air control: weaker steering, and turning around mid-air is even weaker
 air_accel      = 0.07;
 air_turn_accel = 0.03;

@@ -2,8 +2,8 @@
 player_init_common();   // shared defaults live in scr_platformer -> player_init_common()
 
 // ---------- ground movement (snappy: reach top speed in ~2 frames, stop in ~3) ----------
-walk_speed = 3.6;
-run_speed  = 6.0;
+walk_speed = 5.6;
+run_speed  = 8.0;
 
 accel     = 0.50;
 run_accel = 0.60;
